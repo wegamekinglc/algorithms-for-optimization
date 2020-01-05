@@ -1,20 +1,32 @@
-diff_forward(f, x; h=1e-10) = (f(x + h) - f(x)) / h
-diff_central(f, x; h=1e-10) = (f(x + h) - f(x - h)) / 2 / h
-diff_backward(f, x; h=1e-10) = (f(x) - f(x - h)) / h
-diff_complex(f, x; h=1e-10) = imag(f(x + h*im)) / h
+using Gadfly
+using DataFrames
 
+diff_forward(f, h; x=0.5) = (f(x + h) - f(x)) / h
+diff_central(f, h; x=0.5) = (f(x + h) - f(x - h)) / 2 / h
+diff_backward(f, h; x=0.5) = (f(x) - f.(x - h)) / h
+diff_complex(f, h; x=0.5) = imag(f(x + h*im)) / h
 
 
 hs = 10.0 .^ (-18:0);
 
 result = zeros(5, length(hs))
+result[1, :] .= diff_forward.(sin, hs);
+result[2, :] .= diff_central.(sin, hs);
+result[3, :] .= diff_backward.(sin, hs);
+result[4, :] .= diff_complex.(sin, hs);
+result[5, :] .= cos(0.5);
 
-for i=1:length(hs)
-    h = hs[i]
-    result[1, i] = diff_forward(sin, 0.5; h=h)
-    result[2, i] = diff_central(sin, 0.5; h=h)
-    result[3, i] = diff_backward(sin, 0.5; h=h)
-    result[4, i] = diff_complex(sin, 0.5; h=h)
+for i=1:4
+    result[i, :] = log10.(abs.(result[i, :] - result[5, :]) .+ 1e-18)
 end
 
-result[5, :] .= cos(0.5);
+x = repeat(Array(-18:0), 1, 4)'
+plot(x=x, y=result[1:4, :], Geom.line)
+
+df = DataFrame(result[1:4, :]')
+df[:, :x] = Array(-18:0)
+
+plot(df, layer(x=:x, y=:x1, Geom.line),
+         layer(x=:x, y=:x2, Theme(default_color="red"), Geom.line),
+         layer(x=:x, y=:x3, Theme(default_color="green"), Geom.line),
+         layer(x=:x, y=:x4, Theme(default_color="brown"), Geom.line))
